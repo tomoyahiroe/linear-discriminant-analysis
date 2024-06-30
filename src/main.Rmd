@@ -1,0 +1,96 @@
+---
+output: html_document
+---
+# データサイエンス論課題
+
+廣江友哉
+学籍番号: 2125178
+
+## a
+```{r}
+mpg_median <- median(ISLR2::Auto$mpg)
+
+data <- ISLR2::Auto |>
+	dplyr::mutate(mpg01 = dplyr::if_else(mpg >= mpg_median, 1, 0))
+summary(data)
+```
+
+## b
+```{r}
+plots <- colnames(data)[1:8] |>
+		purrr::map(\(x) {
+				 ggplot2::ggplot(
+						 data = data,
+						 ggplot2::aes(group = mpg01, y = !!rlang::sym(x))) +
+				 ggplot2::geom_boxplot(varwidth = T, color = "#3366FF") +
+				 ggplot2::xlab("Miles per gallon of the engine is greater than median (0,1)") +
+				 ggplot2::ylab(x)
+}) 
+gridExtra::grid.arrange(grobs = plots, nrow = 2, ncol = 4)
+```
+
+箱ひげ図の四分位範囲が重なるような特徴量は好ましくないため、acceleration と year は、予測に使用しないようにする。
+
+```{r}
+pairs(data[, c("cylinders", "displacement", "horsepower", "weight", "origin", "mpg01")], 
+      col=data$mpg01 + 1)
+
+cor_matrix <- cor(data[, c("cylinders", "displacement", "horsepower", "weight", "origin", "mpg01")])
+print(cor_matrix)
+```
+
+散布図と相関係数行列を確認すると、mpg01との相関係数の絶対値が最も大きいのは cylinders。散布図から、origin は予測の変数には適当ではないことがわかる。また、displacement も値のばらつきがあり相関係数も非常に高いわけではないため除外する。
+
+## c
+
+```{r}
+set.seed(2125178)
+train_index <- sample(1:nrow(data), size = round(0.8 * nrow(data)))
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+```
+
+## d
+
+```{r}
+model_lda <- MASS::lda(data = train_data, mpg01 ~ cylinders + horsepower + weight)
+
+prediction_lda <- stats::predict(model_lda, test_data)
+mean(prediction_lda$class == test_data$mpg01)
+```
+
+予測精度は`0.9102564`と約91%の精度だった。予測誤差は全体の9%程度となった。
+
+## e
+
+```{r}
+model_qda <- MASS::qda(data = train_data, mpg01 ~ cylinders + horsepower + weight)
+prediction_qda <- stats::predict(model_qda, test_data)
+mean(prediction_qda$class == test_data$mpg01)
+```
+
+予測精度は`0.8974359`で予測誤差は11.3% 。一次判別分析よりも予測精度が下がった。
+
+## f
+
+```{r}
+model_logistic <- glm(mpg01 ~ cylinders + horsepower + weight, data = data, family = binomial, subset = train_index)
+prediction_logistic <- stats::predict(model_logistic, test_data, type = "response")
+
+prediction_logistic_class <- ifelse(prediction_logistic > 0.5, 1, 0)
+mean(prediction_logistic_class == test_data$mpg01)
+```
+
+予測精度は`0.9358974`で予測誤差は6.5%程度。予測精度が上がった。
+
+## g
+
+```{r}
+
+nb.fit <- e1071::naiveBayes(mpg01 ~ cylinders + horsepower + weight, data = data, subset = train_index)
+nb.class <- predict(nb.fit, test_data)
+mean(nb.class == test_data$mpg01)
+```
+
+予測精度は、`0.9102564`で予測誤差は9%程度となった。
+
