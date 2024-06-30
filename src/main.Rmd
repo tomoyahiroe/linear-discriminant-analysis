@@ -6,6 +6,8 @@ output: html_document
 廣江友哉
 学籍番号: 2125178
 
+https://github.com/tomoyahiroe/linear-discriminant-analysis.git に課題用のリポジトリを用意しています。
+
 ## a
 ```{r}
 mpg_median <- median(ISLR2::Auto$mpg)
